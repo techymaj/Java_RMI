@@ -9,4 +9,8 @@ public class SequencerJoinInfo implements Serializable {
         this.addr = addr;
         this.sequence = sequence;
     }
+
+    public String toString() {
+        return "Address: " + addr + " Sequence: " + sequence;
+    }
 }
