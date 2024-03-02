@@ -9,6 +9,7 @@ public class RMIClient {
     private Sequencer sequencer;
     private Scanner scanner;
     private SequencerImpl si;
+    private Scanner askMissing;
 
     public RMIClient() throws RemoteException {
         si = new SequencerImpl();
@@ -30,10 +31,14 @@ public class RMIClient {
                     // tell sequencer that "client" will no longer need its services
                     sequencer.leave("client");
                     scanner.close();
+                    askMissing.close();
                     break label;
                 }
-                case "heartbeat" -> {
-                    si.heartbeat("client", SequencerImpl.lastSequenceReceived);
+                case "heartbeat" -> si.heartbeat("client", SequencerImpl.lastSequenceReceived);
+                case "askMissing" -> {
+                    askMissing = new Scanner(System.in);
+                    String missing = askMissing.nextLine();
+                    si.getMissing("client", Integer.parseInt(missing));
                 }
                 default -> {
                     var messageToSend = input.getBytes();
