@@ -1,28 +1,28 @@
-import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
-import java.util.Arrays;
 
 public class SequencerImpl implements Sequencer {
 
-    private static final int MAX_MSG_LENGTH = 1024;
     static long lastSequenceReceived;
     ArrayList<Message> clientMessages;
+    ArrayList<History> histories;
+    private InetAddress address;
+    static final int MAX_ENTRIES = 1024;
 
     public SequencerImpl() throws RemoteException {
         UnicastRemoteObject.exportObject(this, 0);
         this.clientMessages = new ArrayList<>();
+        this.histories = new ArrayList<>();
     }
 
     @Override
     public SequencerJoinInfo join(String sender) throws RemoteException, UnknownHostException {
         // request for "sender" to join sequencer's multicasting service;
         // returns an object specifying the multicast address and the first sequence number to expect
-        InetAddress address = InetAddress.getLocalHost();
+        address = InetAddress.getLocalHost();
         long sequence = 0L;
         return new SequencerJoinInfo(address, sequence);
     }
@@ -32,7 +32,11 @@ public class SequencerImpl implements Sequencer {
         // "sender" supplies the msg to be sent, its identifier,
         // and the sequence number of the last received message
         SequencerImpl.lastSequenceReceived = lastSequenceReceived;
-        clientMessages.add(new Message(msg, lastSequenceReceived));
+        Message message = new Message(msg, lastSequenceReceived);
+        clientMessages.add(message);
+        History history = new History(sender, address, message);
+        histories.add(history);
+        messageHistoryManager();
     }
 
     @Override
@@ -47,11 +51,7 @@ public class SequencerImpl implements Sequencer {
         for (var message : clientMessages) {
             if (message.sequence() == sequence) {
                 var msg = message.msg();
-//                ByteArrayOutputStream byteStream = new ByteArrayOutputStream(msg.length);
-//                DataOutputStream dataOutputStream = new DataOutputStream(byteStream);
-//                dataOutputStream.writeLong(); // marshals a Long into the byte array underlying bstream
                 System.out.println(new String(msg));
-// …
                 return message.msg();
             }
         }
@@ -65,6 +65,9 @@ public class SequencerImpl implements Sequencer {
         System.out.println("Heartbeat from " + sender + " with lastSequenceReceived: " + lastSequenceReceived);
     }
 
-    public static record Message(byte[] msg, long sequence ) {
+    private void messageHistoryManager() {
+        if (lastSequenceReceived == MAX_ENTRIES) {
+            clientMessages.removeIf(message -> message.sequence() < 5);
+        }
     }
 }
