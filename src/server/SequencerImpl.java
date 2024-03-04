@@ -1,3 +1,10 @@
+package server;
+
+import client.History;
+import client.Message;
+import shared.Sequencer;
+import shared.SequencerJoinInfo;
+
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.rmi.RemoteException;
@@ -6,13 +13,14 @@ import java.util.ArrayList;
 
 public class SequencerImpl implements Sequencer {
 
-    static long lastSequenceReceived;
+    public static long lastSequenceReceived;
     ArrayList<Message> clientMessages;
     ArrayList<History> histories;
     private InetAddress address;
     static final int MAX_ENTRIES = 1024;
 
     public SequencerImpl() throws RemoteException {
+        // make object remotely available
         UnicastRemoteObject.exportObject(this, 0);
         this.clientMessages = new ArrayList<>();
         this.histories = new ArrayList<>();
@@ -42,7 +50,7 @@ public class SequencerImpl implements Sequencer {
     @Override
     public void leave(String sender) throws RemoteException {
         // tell sequencer that "sender" will no longer need its services
-        UnicastRemoteObject.unexportObject(this, true);
+        UnicastRemoteObject.unexportObject(this, false);
     }
 
     @Override
@@ -51,7 +59,7 @@ public class SequencerImpl implements Sequencer {
         for (var message : clientMessages) {
             if (message.sequence() == sequence) {
                 var msg = message.msg();
-                System.out.println(new String(msg));
+                System.out.println("Result > " + new String(msg));
                 return message.msg();
             }
         }
@@ -67,7 +75,7 @@ public class SequencerImpl implements Sequencer {
 
     private void messageHistoryManager() {
         if (lastSequenceReceived == MAX_ENTRIES) {
-            clientMessages.removeIf(message -> message.sequence() < 5);
+            clientMessages.removeIf(message -> message.sequence() < MAX_ENTRIES);
         }
     }
 }

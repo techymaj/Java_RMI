@@ -1,3 +1,7 @@
+package server;
+
+import shared.Sequencer;
+
 import java.rmi.AlreadyBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
@@ -12,6 +16,5 @@ public class RunSequencer {
         Registry registry = LocateRegistry.createRegistry(1099); // like a phone book. and we want to put the sequencer in the phone book
         registry.bind("sequencer", sequencer); // put the sequencer in the phone book under the name "sequencer"
         System.out.println("Sequencer started...");
-
     }
 }

@@ -1,3 +1,5 @@
+package shared;
+
 import java.net.UnknownHostException;
 import java.rmi.*;
 

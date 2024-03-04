@@ -1,3 +1,5 @@
+package shared;
+
 import java.io.*;
 
 public class SequencerException extends Exception implements Serializable {
