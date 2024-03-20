@@ -15,6 +15,6 @@ public class RunSequencer {
         Sequencer sequencer = new SequencerImpl(); // if the server can't create the sequencer, it will throw an exception
         Registry registry = LocateRegistry.createRegistry(1099); // like a phone book. and we want to put the sequencer in the phone book
         registry.bind("sequencer", sequencer); // put the sequencer in the phone book under the name "sequencer"
-        System.out.println("Sequencer started...");
+        System.out.println("Server started...");
     }
 }

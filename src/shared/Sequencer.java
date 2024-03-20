@@ -1,5 +1,7 @@
 package shared;
 
+import client.Group;
+
 import java.net.UnknownHostException;
 import java.rmi.*;
 
@@ -26,4 +28,7 @@ public interface Sequencer extends Remote {
     // heartbeat -- we have received messages up to number "lastSequenceReceived"
     void heartbeat(String sender, long lastSequenceReceived)
             throws RemoteException;
+
+    void registerClient(Broadcast clientToRegister)
+        throws RemoteException;
 }

@@ -1,6 +1,7 @@
 package client;
 
 import server.SequencerImpl;
+import shared.Broadcast;
 import shared.Sequencer;
 import shared.SequencerJoinInfo;
 
@@ -10,17 +11,21 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.util.Scanner;
 
-public class RMIClient {
+import static client.Group.*;
+
+public class RMIClient implements Broadcast {
 
     private Sequencer sequencer;
     private final Scanner scanner;
     private final SequencerImpl si;
     private final Scanner askMissing;
+    private final Scanner groupScanner;
 
     public RMIClient() throws RemoteException {
         si = new SequencerImpl();
         scanner = new Scanner(System.in);
         askMissing = new Scanner(System.in);
+        groupScanner = new Scanner(System.in);
     }
 
     public void start() throws RemoteException, NotBoundException {
@@ -29,6 +34,7 @@ public class RMIClient {
         Registry registry = LocateRegistry.getRegistry("localhost", 1099);
         // get the sequencer from the server (the remote object on which to call the methods)
         sequencer = (Sequencer) registry.lookup("sequencer");
+
         aClientJoins();
         whileLoop:
         while (true) {
@@ -36,13 +42,39 @@ public class RMIClient {
             switch (input) {
                 case "exit" -> {
                     // tell sequencer that "client" will no longer need its services
-                    cleanUp();
+                    cleanUpAndExit();
                     break whileLoop;
                 }
                 case "heartbeat" -> si.heartbeat("client", SequencerImpl.lastSequenceReceived);
                 case "getMissing" -> getMessageFromSequenceNumber();
+                case "joinGroup" -> aClientJoinsGroup();
                 default -> sendMessage(input);
             }
+        }
+    }
+
+    private void aClientJoinsGroup() {
+        try {
+            Group group = new Group("localhost", null, "client");
+            new Thread(group).start();
+            System.out.println("Joined group.");
+            si.registerClient(this); // register client for broadcast
+            System.out.println("Enter a message to send to the group.");
+            while (true) {
+                MsgHandler handler = (count, msg) -> {
+                    SequencerImpl.updateClients(msg, this);
+                };
+
+                var input = groupScanner.nextLine();
+                if (input.equals("exit")) {
+                    group.leave();
+                    break;
+                }
+                group.send(input.getBytes());
+                handler.handle(1, input.getBytes());
+            }
+        } catch (Group.GroupException e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -60,7 +92,7 @@ public class RMIClient {
         si.getMissing("client", Integer.parseInt(missing));
     }
 
-    private void cleanUp() throws RemoteException {
+    private void cleanUpAndExit() throws RemoteException {
         sequencer.leave("client");
         scanner.close();
         askMissing.close();
@@ -76,5 +108,10 @@ public class RMIClient {
         } catch (Exception e) {
             System.out.println("Error: " + e.getMessage());
         }
+    }
+
+    @Override
+    public void update(byte[] msg) throws RemoteException {
+        System.out.println("Received message: " + new String(msg));
     }
 }

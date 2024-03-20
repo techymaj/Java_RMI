@@ -1,15 +1,41 @@
 package client;
 
+import server.SequencerImpl;
+import shared.Sequencer;
+import shared.SequencerException;
+
+import java.net.UnknownHostException;
+import java.rmi.RemoteException;
+
 public class Group implements Runnable {
 
+    private final Sequencer sequencer;
+
+    public interface MsgHandler {
+        void handle(int count, byte[] msg);
+    }
+
     public Group(String host, MsgHandler handler, String senderName) throws GroupException {
-        // contact shared.Sequencer on "host" to join group,
+        // contact Sequencer on "host" to join group,
+        try {
+            sequencer = new SequencerImpl();
+            sequencer.join(senderName);
+        } catch (RemoteException | SequencerException | UnknownHostException e) {
+            throw new RuntimeException(e);
+        }
+
         // create MulticastSocket and thread to listen on it,
         // perform other initialisations
     }
 
     public void send(byte[] msg) throws GroupException {
-        // send the given message to all instances of client.Group using the same sequencer
+        // send the given message to all instances of Group using the same sequencer
+        System.out.println("Sending message: " + new String(msg));
+        try {
+            sequencer.send("client", msg, 1L, SequencerImpl.lastSequenceReceived);
+        } catch (RemoteException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public void leave() {
@@ -22,11 +48,7 @@ public class Group implements Runnable {
         // of client.Group.MsgHandler which was supplied to the constructor
     }
 
-    public interface MsgHandler {
-        public void handle(int count, byte[] msg);
-    }
-
-    public class GroupException extends Exception {
+    public static class GroupException extends Exception {
         public GroupException(String s) {
             super(s);
         }
@@ -35,4 +57,4 @@ public class Group implements Runnable {
     public class HeartBeater extends Thread {
         // This thread sends heartbeat messages when required
     }
-} 
+}

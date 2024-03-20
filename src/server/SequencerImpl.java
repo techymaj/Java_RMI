@@ -2,6 +2,7 @@ package server;
 
 import client.History;
 import client.Message;
+import shared.Broadcast;
 import shared.Sequencer;
 import shared.SequencerJoinInfo;
 
@@ -10,20 +11,23 @@ import java.net.UnknownHostException;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
+import java.util.List;
 
-public class SequencerImpl implements Sequencer {
-
+public class SequencerImpl implements Sequencer, Broadcast {
     public static long lastSequenceReceived;
     ArrayList<Message> clientMessages;
     ArrayList<History> histories;
     private InetAddress address;
-    static final int MAX_ENTRIES = 1024;
+    static final int MAX_ENTRIES = 3;
+    public static List<Broadcast> clientsForBroadcast;
+
 
     public SequencerImpl() throws RemoteException {
         // make object remotely available
         UnicastRemoteObject.exportObject(this, 0);
         this.clientMessages = new ArrayList<>();
         this.histories = new ArrayList<>();
+        SequencerImpl.clientsForBroadcast = new ArrayList<>();
     }
 
     @Override
@@ -45,6 +49,7 @@ public class SequencerImpl implements Sequencer {
         History history = new History(sender, address, message);
         histories.add(history);
         messageHistoryManager();
+        updateClients(msg,  this);
     }
 
     @Override
@@ -77,5 +82,27 @@ public class SequencerImpl implements Sequencer {
         if (lastSequenceReceived == MAX_ENTRIES) {
             clientMessages.removeIf(message -> message.sequence() < MAX_ENTRIES);
         }
+    }
+
+    @Override
+    public void registerClient(Broadcast clientToRegister) {
+        clientsForBroadcast.add(clientToRegister);
+    }
+
+    public static void updateClients(byte[] result, Broadcast dontBroadcastToMe) {
+        for (Broadcast client : SequencerImpl.clientsForBroadcast) {
+            if(client.equals(dontBroadcastToMe)) continue;
+
+            try {
+                client.update(result);
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    @Override
+    public void update(byte[] result) throws RemoteException {
+        System.out.println("Received message: " + new String(result));
     }
 }
